@@ -50,21 +50,6 @@
             -ms-filter: alpha(opacity=0);
             cursor:pointer;
         }
-        .content{
-            outline: 2px dashed #92b0b3 ;
-            outline-offset:-10px;  
-            text-align: center;
-            transition: all .15s ease-in-out;
-            width: 300px;
-            height: 300px;
-            background-color: gray;
-        }
-        #div_test1, #div_test2 {
-            width:100px;
-            height:50px;
-            padding:10px;
-            border:1px solid #aaaaaa;
-        }
         table {
             width: 100%;
             border-top: 1px solid #444444;
@@ -90,67 +75,98 @@
 </head>
 <body>
 <center>
-    <form id="upload" action="/image" method="POST" enctype="multipart/form-data">
-        <div id="image_container">
-            <!-- 썸네일 이미지틀 -->
-            {% if name %}
-            {{name}}<br>
-            <img style="width: 320px; height: 240px;" id="thum-img" src="{{url_for('static', filename='/saved_file/'+name)}}">
-            {% else %}
-            <img style="width: 320px; height: 240px;" id="thum-img" src="{{url_for('static', filename='default.png')}}">
-            {% endif %}
-        </div>
+    <div id="image_container">
+        <!-- 썸네일 이미지틀 -->
+        <img style="width: 320px; height: 240px;" id="thum-img" src="{{url_for('static', filename='default.png')}}">
+    </div>
 
-        <!-- 파일명  넣을 input -->
-        <input type="text" id="fileName"  name="fileName" class="file_input_textbox">
+    <!-- 파일명  넣을 input -->
+    <!-- <input type="text" id="fileName"  name="fileName" class="file_input_textbox"> -->
 
-        <!-- 이미지 선택 버튼 -->
+    <!-- 이미지 선택 버튼 -->
+    <form id="ImageSelect" name="img_select" enctype="multipart/form-data">
         <div class="file_input_div">
             <img src="{{url_for('static', filename='open.png')}}" class="file_input_img_btn" alt="open">
-            <input type="file" id="input-image" name="input-image" class="file_input_hidden" onchange="javascript:document.getElementById('fileName').value = this.value">
-        </div>
-
-        <!-- 분석 버튼 -->
-        <div class="file_analyse_div">
-            <img src="{{url_for('static', filename='analyse.png')}}" class="file_analyse_img_btn" alt="analyse" />
-            <input type="submit" id="analyse-image" class="file_analyse_hidden">
-        </div>
-
-        <!-- 분석 결과 출력 -->
-        <div class="result_label">
-            {% if label %}
-                {{ label }}
-            {% endif %}
-            {% if item or type %}
-                품목: {{ item }} / 품종: {{ type }}<br>
-                <br>
-                <table>
-                    <!-- 테이블 헤드 -->
-                    <thead>
-                        <tr>
-                            <th>품목</th>
-                            <th>품종</th>
-                            <th>등급</th>
-                            <th>속수량</th>
-                            <th>낙찰금액</th>
-                        </tr>
-                    </thead>
-                    <!-- 테이블 목록(DB 필요) -->
-                    <tbody>
-                        {% for tr in rows %}
-                            <tr>
-                            {% for td in tr %}
-                                <td>{{ td }}</td>
-                            {% endfor %}
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% endif %}
+            <input type="file" id="input-image" name="input-image" class="file_input_hidden" onchange="imageInput()">
+            <!-- <input type="file" id="input-image" name="input-image" class="file_input_hidden" onchange="javascript:document.getElementById('fileName').value = this.value"> -->
         </div>
     </form>
+    
+    <!-- 분석 버튼 -->
+    <div class="file_analyse_div">
+        <img src="{{url_for('static', filename='analyse.png')}}" class="file_analyse_img_btn" alt="analyse" />
+        <input type="submit" id="analyse-image" class="file_analyse_hidden" onclick="imageAnalyse()">
+    </div>
 
+    <!-- 분석 결과 출력 -->
+    <div class="result_label">
+        <table>
+            <!-- 테이블 헤드 -->
+            <thead>
+                <tr>
+                    <th>품목</th>
+                    <th>품종</th>
+                    <th>등급</th>
+                    <th>속수량</th>
+                    <th>낙찰금액</th>
+                </tr>
+            </thead>
+            <!-- 테이블 목록(DB 필요) -->
+            <tbody id="flower-list">
+            </tbody>
+        </table>
+    </div>
+    
     <script>
+        // 선택한 이미지 전송
+        function imageInput() {
+            var formDataRaw = $('#ImageSelect')[0];
+            var form_data = new FormData(formDataRaw);
+            $.ajax({
+                type: 'POST',
+                url: '/input-image',
+                data: form_data,
+                contentType: false, // 해당 타입을 true로 하면 일반 text로 구분되어 진다.
+                cache: false,
+                processData: false, // 데이터 객체를 문자열로 바꿀지에 대한 값이다. true면 일반문자...
+                async: false,       // 비동기 여부
+                success: function (data) {
+                    console.log('이미지 선택');
+                    $("#status").show();
+                },
+            });
+        }
+
+        // 이미지 분석
+        function imageAnalyse() {
+            let fileValue = $("#input-image").val().split("\\");
+            $.ajax({
+                type: "GET",
+                url: "/analyse_result?img_name=" + fileValue[2],
+                data:{},
+                // 성공 시 DB 값 가져와서 테이블 생성
+                success: function(results) {
+                    console.log(fileValue[2])
+                    console.log("분석 결과")
+                    // tbody 비우기
+                    $("#flower-list").empty();
+                    // tbody 하위 요소 추가
+                    for (let i = 0; i < results.length; i++) {
+                        let flower = results[i];
+                        $("#flower-list").append(
+                            `<tr>
+                                <td>${flower["poomname"]}</td>
+                                <td>${flower["goodname"]}</td>
+                                <td>${flower["lvname"]}</td>
+                                <td>${flower["qty"]}</td>
+                                <td>${flower["cost"]}</td>
+                            </tr>`
+                        )
+                    }
+                }
+            })
+        }
+        // 이미지 미리 보기
         function readImage(input) {
             // 인풋 태그에 파일이 있는 경우
             if(input.files && input.files[0]) {
