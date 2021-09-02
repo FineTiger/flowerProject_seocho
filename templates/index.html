@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>꽃시장</title>
 
+    <!-- Chart import -->
+    <script src = "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.5.1/chart.min.js"></script>
+    <!-- 부트스트랩 import -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" crossorigin="anonymous">
     <!-- jQuery를 import -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 
@@ -77,7 +81,7 @@
 <center>
     <div id="image_container">
         <!-- 썸네일 이미지틀 -->
-        <img style="width: 320px; height: 240px;" id="thum-img" src="{{url_for('static', filename='default.png')}}">
+        <img style="width: 320px; height: 240px;" id="thum-img" src="{{url_for('static', filename='img/default.png')}}">
     </div>
 
     <!-- 파일명  넣을 input -->
@@ -86,15 +90,15 @@
     <!-- 이미지 선택 버튼 -->
     <form id="ImageSelect" name="img_select" enctype="multipart/form-data">
         <div class="file_input_div">
-            <img src="{{url_for('static', filename='open.png')}}" class="file_input_img_btn" alt="open">
+            <img src="{{url_for('static', filename='img/open.png')}}" class="file_input_img_btn" alt="open">
             <input type="file" id="input-image" name="input-image" class="file_input_hidden" onchange="imageInput()">
             <!-- <input type="file" id="input-image" name="input-image" class="file_input_hidden" onchange="javascript:document.getElementById('fileName').value = this.value"> -->
         </div>
     </form>
-    
+
     <!-- 분석 버튼 -->
     <div class="file_analyse_div">
-        <img src="{{url_for('static', filename='analyse.png')}}" class="file_analyse_img_btn" alt="analyse" />
+        <img src="{{url_for('static', filename='img/analyse.png')}}" class="file_analyse_img_btn" alt="analyse" />
         <input type="submit" id="analyse-image" class="file_analyse_hidden" onclick="imageAnalyse()">
     </div>
 
@@ -116,8 +120,60 @@
             </tbody>
         </table>
     </div>
-    
+    <div>
+        <canvas id="myChart"></canvas>
+    </div>
     <script>
+        // 그래프 뼈대
+        var ctx = document.getElementById("myChart").getContext("2d");
+        var myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: "최고가격",
+                        fill: false,
+                        lineTension: 0.1,
+                        backgroundColor: "skyblue",
+                        borderColor: "skyblue"
+
+                    },
+                    {
+                        label: "최저가격",
+                        fill: false,
+                        lineTension: 0.1,
+                        backgroundColor: "pink",
+                        borderColor: "pink"
+
+                    },
+                    {
+                        label: "평균가격",
+                        fill: false,
+                        lineTension: 0.1,
+                        backgroundColor: "gray",
+                        borderColor: "gray"
+
+                    }
+                ]
+            },
+            options: {
+                tooltips: {
+                    mode: 'index',
+                    intersect: false
+                },
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero:true
+                        }
+                    }]
+                }
+            }
+        });
+        
+        var data = data || {};
+                    
         // 선택한 이미지 전송
         function imageInput() {
             var formDataRaw = $('#ImageSelect')[0];
@@ -126,9 +182,9 @@
                 type: 'POST',
                 url: '/input-image',
                 data: form_data,
-                contentType: false, // 해당 타입을 true로 하면 일반 text로 구분되어 진다.
+                contentType: false, // 해당 타입을 true로 하면 일반 text
                 cache: false,
-                processData: false, // 데이터 객체를 문자열로 바꿀지에 대한 값이다. true면 일반문자...
+                processData: false, // 데이터 객체를 문자열로 바꿀지에 대한 값, true면 일반문자
                 async: false,       // 비동기 여부
                 success: function (data) {
                     console.log('이미지 선택');
@@ -140,6 +196,8 @@
         // 이미지 분석
         function imageAnalyse() {
             let fileValue = $("#input-image").val().split("\\");
+            let flowerPoom
+            let flowerGood
             $.ajax({
                 type: "GET",
                 url: "/analyse_result?img_name=" + fileValue[2],
@@ -155,17 +213,38 @@
                         let flower = results[i];
                         $("#flower-list").append(
                             `<tr>
-                                <td>${flower["poomname"]}</td>
+                                 <td>${flower["poomname"]}</td>
                                 <td>${flower["goodname"]}</td>
                                 <td>${flower["lvname"]}</td>
                                 <td>${flower["qty"]}</td>
                                 <td>${flower["cost"]}</td>
                             </tr>`
                         )
+                        flowerPoom = flower["poomname"]
+                        flowerGood = flower["goodname"]
                     }
+                    console.log(flowerPoom + "_" + flowerGood + " 그래프 그리기")
+                    
+                    // 가져온 DB 값과 파일명 대조하여 그래프 그리기
+                    // examine example_data.json for expected response data
+                    // var json_url = "{{url_for('static', filename='flowerPoom' + '_' + 'flowerGood' + '.json')}}";
+                    var json_url = '/static/json/' + flowerPoom + '_' + flowerGood + '.json'
+                    console.log(json_url)
+
+                    $.getJSON(json_url, data).done(function(response) {
+                        myChart.data.labels = response.labels;
+                        myChart.data.datasets[0].data = response.data.max; // or you can iterate for multiple datasets
+                        myChart.data.datasets[1].data = response.data.min;
+                        myChart.data.datasets[2].data = response.data.avg;
+                        myChart.update(); // finally update our chart
+                    });
+
                 }
+                
             })
+            
         }
+
         // 이미지 미리 보기
         function readImage(input) {
             // 인풋 태그에 파일이 있는 경우
@@ -185,13 +264,12 @@
                 }
             }
         }
-        // input file에 change 이벤트 부여
         const inputImage = document.getElementById("input-image")
         inputImage.addEventListener("change", e => {
             readImage(e.target)
         })
     </script>
-    
+
 </center>
 </body>
 </html>
